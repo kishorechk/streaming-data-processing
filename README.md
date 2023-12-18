@@ -49,7 +49,7 @@ The `payments-generator.py` script generates synthetic payment transactions, sim
 
 The `process_transaction.py` script consumes payment transactions from Kafka, performs windowed aggregations, and calculates transaction counts and average amounts per window for fraud detection.
 
-For detailed information and a step-by-step guide, refer to the associated blog post.
+For detailed information and a step-by-step guide, refer to the associated [blog post](https://medium.com/@kishorchukka/stream-processing-with-kafka-and-spark-b6fd7e2144bb).
 
 Feel free to reach out for any queries or suggestions!
 
