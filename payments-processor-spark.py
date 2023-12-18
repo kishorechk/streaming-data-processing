@@ -22,7 +22,7 @@ spark = (
 )
 
 windowDuration = "30 seconds"
-slideDuration = "10 seconds"
+slideDuration = "5 seconds"
 json_schema = StructType(
     [
         StructField("cardNumber", StringType(), True),
@@ -34,40 +34,43 @@ json_schema = StructType(
 
 
 def process_transaction():
-    df = (
-        spark.readStream.format("kafka")
-        .option("kafka.bootstrap.servers", BOOTSTRAP_SERVERS)
-        .option("subscribe", PAYMENTS_TOPIC)
-        .load()
-    )
+    try:
+        df = (
+            spark.readStream.format("kafka")
+            .option("kafka.bootstrap.servers", BOOTSTRAP_SERVERS)
+            .option("subscribe", PAYMENTS_TOPIC)
+            .load()
+        )
 
-    json_df = df.selectExpr("cast(value as string) as value")
+        json_df = df.selectExpr("cast(value as string) as value")
 
-    json_expanded_df = json_df.withColumn(
-        "value", from_json(json_df["value"], json_schema)
-    ).select("value.*")
+        json_expanded_df = json_df.withColumn(
+            "value", from_json(json_df["value"], json_schema)
+        ).select("value.*")
 
-    print("Received message:")
-    json_expanded_df.printSchema()
+        print("Received message:")
+        json_expanded_df.printSchema()
 
-    json_expanded_df = json_expanded_df.withWatermark("timestamp", "1 minute")
+        json_expanded_df = json_expanded_df.withWatermark("timestamp", "1 minute")
 
-    windowed_df = json_expanded_df.groupBy(
-        window("timestamp", windowDuration, slideDuration), "cardNumber"
-    )
+        windowed_df = json_expanded_df.groupBy(
+            window("timestamp", windowDuration, slideDuration), "cardNumber"
+        )
 
-    transaction_count = windowed_df.agg(
-        count("*").alias("transactionCount"),
-        avg("amount").alias("avgTransactionAmount"),
-    )
+        transaction_count = windowed_df.agg(
+            count("*").alias("transactionCount"),
+            avg("amount").alias("avgTransactionAmount"),
+        )
 
-    query = (
-        transaction_count.writeStream.outputMode("append")
-        .format("console")
-        .trigger(processingTime="5 seconds")
-        .start()
-    )
-    query.awaitTermination()
+        query = (
+            transaction_count.writeStream.outputMode("append")
+            .format("console")
+            .trigger(processingTime="5 seconds")
+            .start()
+        )
+        query.awaitTermination()
+    except:
+        print("Something went wrong")
 
 
 process_transaction()
